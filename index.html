@@ -1,6 +1,130 @@
-<h1>Deployed via Jenkins Pipeline>>>>TEST AUTOMATION>></h1>
-</p>GitHub --> sends webhook</p>
-</p>Jenkins --> triggers build</p>
-</p>Pipeline runs</p>
-</p>Docker redeploys</p>
-</p>Website updates automatically</p>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task Builder</title>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 40px;
+        }
+
+        h1 {
+            font-size: 40px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 2px solid black;
+            padding: 10px;
+            text-align: left;
+        }
+
+        button {
+            padding: 5px 10px;
+            margin: 2px;
+            cursor: pointer;
+        }
+
+        input {
+            padding: 8px;
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Task builder</h1>
+
+<input id="taskInput" placeholder="Enter task">
+<button onclick="addTask()">Add Task</button>
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Task</th>
+            <th>Status</th>
+            <th colspan="2">Actions</th>
+        </tr>
+    </thead>
+    <tbody id="taskTable"></tbody>
+</table>
+
+<script>
+async function loadTasks() {
+    const res = await fetch('/api/tasks');
+    const tasks = await res.json();
+
+    const table = document.getElementById('taskTable');
+    table.innerHTML = '';
+
+    tasks.forEach(task => {
+        const row = `
+            <tr>
+                <td>${task.id}</td>
+                <td>${task.text}</td>
+                <td>
+                    <select onchange="updateStatus(${task.id}, this.value)">
+                        <option ${task.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                        <option ${task.status === 'Done' ? 'selected' : ''}>Done</option>
+                    </select>
+                </td>
+                <td><button onclick="editTask(${task.id})">Edit</button></td>
+                <td><button onclick="deleteTask(${task.id})">Delete</button></td>
+            </tr>
+        `;
+        table.innerHTML += row;
+    });
+}
+
+async function addTask() {
+    const text = document.getElementById('taskInput').value;
+
+    await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+    });
+
+    document.getElementById('taskInput').value = '';
+    loadTasks();
+}
+
+async function deleteTask(id) {
+    await fetch('/api/tasks/' + id, { method: 'DELETE' });
+    loadTasks();
+}
+
+async function editTask(id) {
+    const newText = prompt("Edit task:");
+    if (!newText) return;
+
+    await fetch('/api/tasks/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: newText })
+    });
+
+    loadTasks();
+}
+
+async function updateStatus(id, status) {
+    await fetch('/api/tasks/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+    });
+
+    loadTasks();
+}
+
+loadTasks();
+</script>
+
+</body>
+</html>
