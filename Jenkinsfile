@@ -9,12 +9,6 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                git 'https://github.com/tammanasandeep00-cmyk/jenkins-devops-demo.git'
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t my-app .'
@@ -23,9 +17,7 @@ pipeline {
 
         stage('Tag Image for ECR') {
             steps {
-                sh '''
-                docker tag my-app:latest $ECR_REPO:$IMAGE_TAG
-                '''
+                sh 'docker tag my-app:latest $ECR_REPO:$IMAGE_TAG'
             }
         }
 
@@ -40,9 +32,7 @@ pipeline {
 
         stage('Push to ECR') {
             steps {
-                sh '''
-                docker push $ECR_REPO:$IMAGE_TAG
-                '''
+                sh 'docker push $ECR_REPO:$IMAGE_TAG'
             }
         }
 
