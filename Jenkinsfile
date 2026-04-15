@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     environment {
+        AWS_REGION = "us-east-1"
         ECR_REPO = "212295302817.dkr.ecr.us-east-1.amazonaws.com/my-app"
-        IMAGE_TAG = "${BUILD_NUMBER}"
-        REGION = "us-east-1"
+        IMAGE_TAG = "latest"
     }
 
     stages {
@@ -15,28 +15,38 @@ pipeline {
             }
         }
 
-        stage('Build Image') {
+        stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $ECR_REPO:$IMAGE_TAG .'
+                sh 'docker build -t my-app .'
+            }
+        }
+
+        stage('Tag Image for ECR') {
+            steps {
+                sh '''
+                docker tag my-app:latest $ECR_REPO:$IMAGE_TAG
+                '''
             }
         }
 
         stage('Login to ECR') {
             steps {
                 sh '''
-                aws ecr get-login-password --region $REGION | \
+                aws ecr get-login-password --region $AWS_REGION | \
                 docker login --username AWS --password-stdin $ECR_REPO
                 '''
             }
         }
 
-        stage('Push Image') {
+        stage('Push to ECR') {
             steps {
-                sh 'docker push $ECR_REPO:$IMAGE_TAG'
+                sh '''
+                docker push $ECR_REPO:$IMAGE_TAG
+                '''
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy Container') {
             steps {
                 sh '''
                 docker rm -f my-app-container || true
