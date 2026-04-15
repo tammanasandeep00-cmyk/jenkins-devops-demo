@@ -1,48 +1,70 @@
 const express = require('express');
+const path = require('path');
+const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBDocumentClient, PutCommand, ScanCommand, DeleteCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
+const { v4: uuidv4 } = require('uuid');
+
 const app = express();
+const PORT = 3000;
 
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
-let tasks = [];
+const client = new DynamoDBClient({ region: "us-east-1" });
+const docClient = DynamoDBDocumentClient.from(client);
+const TABLE = "tasks-table";
 
-// GET all tasks
-app.get('/api/tasks', (req, res) => {
-    res.json(tasks);
+// GET
+app.get('/api/tasks', async (req, res) => {
+    const data = await docClient.send(new ScanCommand({ TableName: TABLE }));
+    res.json(data.Items || []);
 });
 
-// CREATE task
-app.post('/api/tasks', (req, res) => {
-    const task = {
-        id: Date.now(),
+// CREATE
+app.post('/api/tasks', async (req, res) => {
+    const newTask = {
+        id: uuidv4(),
         text: req.body.text,
         status: "Pending"
     };
-    tasks.push(task);
-    res.json(task);
+
+    await docClient.send(new PutCommand({
+        TableName: TABLE,
+        Item: newTask
+    }));
+
+    res.json(newTask);
 });
 
-// UPDATE task (edit + status)
-app.put('/api/tasks/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const task = tasks.find(t => t.id === id);
+// DELETE
+app.delete('/api/tasks/:id', async (req, res) => {
+    await docClient.send(new DeleteCommand({
+        TableName: TABLE,
+        Key: { id: req.params.id }
+    }));
 
-    if (task) {
-        task.text = req.body.text ?? task.text;
-        task.status = req.body.status ?? task.status;
-        res.json(task);
-    } else {
-        res.status(404).json({ error: "Task not found" });
-    }
-});
-
-// DELETE task
-app.delete('/api/tasks/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    tasks = tasks.filter(t => t.id !== id);
     res.json({ message: "Deleted" });
 });
 
-app.listen(3000, () => {
-    console.log("Server running on http://localhost:3000");
+// UPDATE
+app.put('/api/tasks/:id', async (req, res) => {
+    await docClient.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { id: req.params.id },
+        UpdateExpression: "set #s = :s, #t = :t",
+        ExpressionAttributeNames: {
+            "#s": "status",
+            "#t": "text"
+        },
+        ExpressionAttributeValues: {
+            ":s": req.body.status,
+            ":t": req.body.text
+        }
+    }));
+
+    res.json({ message: "Updated" });
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT}`);
 });
