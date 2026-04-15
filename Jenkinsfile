@@ -40,7 +40,7 @@ pipeline {
             steps {
                 sh '''
                 docker rm -f my-app-container || true
-                docker run -d -p 8081:80 --name my-app-container $ECR_REPO:$IMAGE_TAG
+                docker run -d -p 8081:3000 --name my-app-container $ECR_REPO:$IMAGE_TAG
                 '''
             }
         }
